@@ -150,7 +150,19 @@ export default function Home() {
   };
 
   return (
+
+    <>
+
     <Box sx={rootStyle}>
+    <Typography 
+        variant="h1" 
+        sx={{ color: 'blue', fontFamily: 'Arial, sans-serif' }}
+      >
+        Pantry Tracker
+      </Typography>
+
+      <p> Add items using a camera or manually</p>
+
       {/* Modal for Adding New Item */}
       <Modal
         open={open}
@@ -209,13 +221,18 @@ export default function Home() {
           </Stack>
         </Box>
       </Modal>
-
+      <Box display="flex" alignItems="center" gap={2}>
       <Button variant="contained" onClick={handleOpen}>
-        Add New Item
+        Manual
       </Button>
-      <Button variant="contained" onClick={handleCameraOpen}>
-        Add New Item With Camera
+      <Button 
+        variant="contained" 
+        onClick={handleCameraOpen}
+        sx={{ padding: '8px', minWidth: 'auto' }} // Optional: Adjust padding and width
+      >
+        Camera
       </Button>
+    </Box>
 
       <Box border={'1px solid #333'}>
         <Box
@@ -261,5 +278,7 @@ export default function Home() {
         </Stack>
       </Box>
     </Box>
+
+    </>
   )
 }

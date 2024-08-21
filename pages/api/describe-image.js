@@ -34,7 +34,7 @@ export default async function handler(req, res) {
             content: [
               {
                 type: 'text',
-                text: 'with one word can you describe the fruit or vegetable in the image'
+                text: 'with one word can you describe the fruit or vegetable in the image. If its not either than say not a food item.'
               },
               {
                 type: 'image_url',
