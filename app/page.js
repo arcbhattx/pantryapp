@@ -14,6 +14,11 @@ import {
   getDoc,
 } from 'firebase/firestore'
 
+import { useRouter } from 'next/navigation';
+import { signOut } from 'firebase/auth';
+import { auth } from '../firebase'; // Adjust the path as necessary
+import { useAuth } from '../context/AuthContext'; // Import your custom hook
+
 const modalStyle = {
   position: 'absolute',
   top: '50%',
@@ -58,56 +63,102 @@ export default function Home() {
   const cameraRef = useRef(null)
   const [capturedImage, setCapturedImage] = useState(null)
   const [imageDescription, setImageDescription] = useState('')
+  const { user } = useAuth(); // Access the user from context
+  const router = useRouter();
+
+  const [loading,setLoading] = useState(false);
+
+  useEffect(() => {
+    if (user === undefined) {
+      // Still checking for user authentication status
+      return;
+    }
+  
+    if (user === null) {
+      // Redirect to login if user is not authenticated
+      router.push('/home');
+    } else {
+      // User is authenticated, fetch their inventory
+      setLoading(false);
+      updateInventory();  // Fetch user-specific inventory
+    }
+  }, [user, router]);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push('/home');  // Redirect to the home page after logging out
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   const updateInventory = async () => {
-    const snapshot = query(collection(firestore, 'inventory'))
-    const docs = await getDocs(snapshot)
-    const inventoryList = []
+    if (!user) return;  // Ensure user is authenticated
+    
+    const userInventoryRef = collection(firestore, `users/${user.uid}/inventory`);
+    const snapshot = query(userInventoryRef);
+    const docs = await getDocs(snapshot);
+    const inventoryList = [];
+    
     docs.forEach((doc) => {
-      inventoryList.push({ name: doc.id, ...doc.data() })
-    })
-    setInventory(inventoryList)
-  }
-
+      inventoryList.push({ name: doc.id, ...doc.data() });
+    });
+    
+    setInventory(inventoryList);
+  };
+  
   useEffect(() => {
     updateInventory()
   }, [])
 
   const addItem = async (item) => {
-    const docRef = doc(collection(firestore, 'inventory'), item)
-    const docSnap = await getDoc(docRef)
+    if (!user) return;  // Ensure user is authenticated
+    
+    const docRef = doc(collection(firestore, `users/${user.uid}/inventory`), item);
+    const docSnap = await getDoc(docRef);
+    
     if (docSnap.exists()) {
-      const { quantity } = docSnap.data()
-      await setDoc(docRef, { quantity: quantity + 1 })
+      const { quantity } = docSnap.data();
+      await setDoc(docRef, { quantity: quantity + 1 });
     } else {
-      await setDoc(docRef, { quantity: 1 })
+      await setDoc(docRef, { quantity: 1 });
     }
-    await updateInventory()
-  }
+    
+    await updateInventory();
+  };
 
   const removeItem = async (item) => {
-    const docRef = doc(collection(firestore, 'inventory'), item)
-    const docSnap = await getDoc(docRef)
+    if (!user) return;  // Ensure user is authenticated
+    
+    const docRef = doc(collection(firestore, `users/${user.uid}/inventory`), item);
+    const docSnap = await getDoc(docRef);
+    
     if (docSnap.exists()) {
-      const { quantity } = docSnap.data()
+      const { quantity } = docSnap.data();
       if (quantity === 1) {
-        await deleteDoc(docRef)
+        await deleteDoc(docRef);
       } else {
-        await setDoc(docRef, { quantity: quantity - 1 })
+        await setDoc(docRef, { quantity: quantity - 1 });
       }
     }
-    await updateInventory()
-  }
+    
+    await updateInventory();
+  };
 
   const increaseItemQuantity = async (item) => {
-    const docRef = doc(collection(firestore, 'inventory'), item)
-    const docSnap = await getDoc(docRef)
+    if (!user) return;  // Ensure user is authenticated
+    
+    const docRef = doc(collection(firestore, `users/${user.uid}/inventory`), item);
+    const docSnap = await getDoc(docRef);
+    
     if (docSnap.exists()) {
-      const { quantity } = docSnap.data()
-      await setDoc(docRef, { quantity: quantity + 1 })
+      const { quantity } = docSnap.data();
+      await setDoc(docRef, { quantity: quantity + 1 });
     }
-    await updateInventory()
-  }
+    
+    await updateInventory();
+  };
 
   const handleOpen = () => setOpen(true)
   const handleClose = () => setOpen(false)
@@ -155,13 +206,13 @@ export default function Home() {
 
     <Box sx={rootStyle}>
     <Typography 
-        variant="h1" 
-        sx={{ color: 'blue', fontFamily: 'Arial, sans-serif' }}
+        variant="p" 
+        sx={{ color: 'green', fontFamily: 'Arial, sans-serif' }}
       >
-        Pantry Tracker
+        Add items using a camera or manually
       </Typography>
 
-      <p> Add items using a camera or manually</p>
+      <p></p>
 
       {/* Modal for Adding New Item */}
       <Modal
@@ -171,7 +222,7 @@ export default function Home() {
         aria-describedby="modal-modal-description"
       >
         <Box sx={modalStyle}>
-          <Typography id="modal-modal-title" variant="h6" component="h2">
+          <Typography id="modal-modal-title" variant="h6" component="h2" >
             Add Item
           </Typography>
           <Stack width="100%" direction={'row'} spacing={2}>
@@ -184,7 +235,8 @@ export default function Home() {
               onChange={(e) => setItemName(e.target.value)}
             />
             <Button
-              variant="outlined"
+              variant="contained"
+              color="success"
               onClick={() => {
                 addItem(itemName)
                 setItemName('')
@@ -206,31 +258,32 @@ export default function Home() {
       >
         <Box sx={{ ...modalStyle, width: 600 }}>
           <Typography id="camera-modal-title" variant="h6" component="h2">
-            Take a Photo
+            Capture
           </Typography>
           <Box sx={cameraBoxStyle}>
             <Camera ref={cameraRef} />
           </Box>
           <Stack direction="row" justifyContent="space-between" mt={2}>
-            <Button variant="contained" onClick={capturePhoto}>
+            <Button variant="contained" color="success" onClick={capturePhoto}>
               Capture
             </Button>
-            <Button variant="contained" onClick={handleCameraClose}>
+            <Button variant="contained" color="success" onClick={handleCameraClose}>
               Close
             </Button>
           </Stack>
         </Box>
       </Modal>
       <Box display="flex" alignItems="center" gap={2}>
-      <Button variant="contained" onClick={handleOpen}>
-        Manual
+      <Button variant="contained" color="success" onClick={handleOpen}>
+        Manual Enter
       </Button>
       <Button 
         variant="contained" 
-        onClick={handleCameraOpen}
+        color="success"
         sx={{ padding: '8px', minWidth: 'auto' }} // Optional: Adjust padding and width
+        onClick={handleCameraOpen}
       >
-        Camera
+        Camera Enter
       </Button>
     </Box>
 
@@ -238,7 +291,6 @@ export default function Home() {
         <Box
           width="800px"
           height="100px"
-          bgcolor={'#333'} // Darker background for the header
           display={'flex'}
           justifyContent={'center'}
           alignItems={'center'}
@@ -266,17 +318,26 @@ export default function Home() {
                 Quantity: {quantity}
               </Typography>
               <Stack direction="row" spacing={2}>
-                <Button variant="contained" onClick={() => increaseItemQuantity(name)}>
+                <Button variant="contained" color="success" onClick={() => increaseItemQuantity(name)}>
                   +
                 </Button>
-                <Button variant="contained" onClick={() => removeItem(name)}>
+                <Button variant="contained" color="success" onClick={() => removeItem(name)}>
                   Remove
                 </Button>
               </Stack>
             </Box>
           ))}
+          
         </Stack>
       </Box>
+
+      <Button 
+              sx={{ bgcolor: 'black', ':hover': { bgcolor: 'green' } }} 
+              variant="contained" 
+              onClick={handleLogout}
+            >
+              Logout
+      </Button>
     </Box>
 
     </>
